@@ -1,21 +1,34 @@
-# Next.js template
+# Vibesync
 
-This is a Next.js template with shadcn/ui.
+Vibesync is an AI-powered music player designed to make music discovery effortless. It helps users explore albums and tracks by mood, genre, energy, and vibe, so the right music is always just a few taps away.
 
-## Adding components
+## What Vibesync does
 
-To add components to your app, run the following command:
+Vibesync transforms music listening into a more personal and intuitive experience by organizing music around how it feels.
 
-```bash
-npx shadcn@latest add button
-```
+- Categorize albums by mood such as calm, upbeat, nostalgic, dreamy, focused, and romantic
+- Discover music by genre, subgenre, and listening style
+- Create personalized playlists for study, workout, chill, party, and relaxation
+- Deliver smart recommendations based on emotion, atmosphere, and preferences
 
-This will place the ui components in the `components` directory.
+## Key features
 
-## Using components
+- Mood-based album discovery
+- Genre and vibe filters
+- AI-powered music recommendations
+- Personalized playlists and listening flow
+- Clean, modern user experience
 
-To use the components in your app, import them as follows:
+## Tech stack
 
-```tsx
-import { Button } from "@/components/ui/button";
-```
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+
+## Getting started
+
+1. Install dependencies
+   ```bash
+   npm install
