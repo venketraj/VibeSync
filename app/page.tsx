@@ -71,55 +71,79 @@ export default function Page() {
 
   // References
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  // Tracks whether a new load is in flight so stale play() calls are ignored
+  const playIntentRef = useRef(false)
 
-  // Prevent Hydration mismatch
+  // Prevent Hydration mismatch — create the Audio element once on the client
   useEffect(() => {
     setMounted(true)
-    audioRef.current = new Audio()
-    audioRef.current.src = currentTrack.audioUrl
-    audioRef.current.volume = volume
+    const audio = new Audio()
+    audio.volume = volume
+    audioRef.current = audio
 
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current.src = ""
+      audio.pause()
+      audio.src = ""
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Unified audio effect: reacts to both track changes AND play/pause changes.
+  // Keeping both in one effect prevents the race condition where two separate
+  // effects both call play() after load() has been triggered, causing
+  // "play() was interrupted by a new load request" (AbortError).
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio || !mounted) return
+
+    let cancelled = false
+
+    const attemptPlay = () => {
+      if (cancelled) return
+      audio.play().catch(err => {
+        if (cancelled) return // ignore errors from superseded requests
+        if ((err as DOMException).name !== "AbortError") {
+          console.error("Audio play failed:", err)
+        }
+        setIsPlaying(false)
+      })
+    }
+
+    if (audio.src !== currentTrack.audioUrl) {
+      // Track changed — load new source, then play if intended
+      audio.pause()
+      audio.src = currentTrack.audioUrl
+      setCurrentTime(0)
+      setDuration(currentTrack.durationSec)
+
+      if (isPlaying) {
+        // Wait for enough data before playing to avoid the AbortError
+        const onCanPlay = () => {
+          audio.removeEventListener("canplay", onCanPlay)
+          attemptPlay()
+        }
+        audio.addEventListener("canplay", onCanPlay)
+        audio.load()
+        // Cleanup: remove the listener if the effect re-runs before canplay fires
+        return () => {
+          cancelled = true
+          audio.removeEventListener("canplay", onCanPlay)
+        }
+      } else {
+        audio.load()
+      }
+    } else {
+      // Same track — just toggle play/pause
+      if (isPlaying) {
+        attemptPlay()
+      } else {
+        audio.pause()
       }
     }
-  }, [])
 
-  // Sync track changes
-  useEffect(() => {
-    if (!audioRef.current || !mounted) return
-
-    const wasPlaying = isPlaying
-    audioRef.current.src = currentTrack.audioUrl
-    audioRef.current.load()
-    
-    // Sync current time and duration
-    setCurrentTime(0)
-    setDuration(currentTrack.durationSec)
-
-    if (wasPlaying) {
-      audioRef.current.play().catch(err => {
-        console.error("Audio playback error:", err)
-        setIsPlaying(false)
-      })
+    return () => {
+      cancelled = true
     }
-  }, [currentTrack])
-
-  // Sync audio play/pause status
-  useEffect(() => {
-    if (!audioRef.current || !mounted) return
-
-    if (isPlaying) {
-      audioRef.current.play().catch(err => {
-        console.error("Audio play failed:", err)
-        setIsPlaying(false)
-      })
-    } else {
-      audioRef.current.pause()
-    }
-  }, [isPlaying])
+  }, [currentTrack, isPlaying, mounted])
 
   // Sync volume and mute state
   useEffect(() => {
